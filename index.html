@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crossword Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: rgb(135, 170, 198);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      position: relative;
+    }
+    h1 {
+      top:auto;
+      text-align: center;
+      font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+      font-size: 60px;
+    }
+  
+    #crossword-title {
+      font-size: 20px;
+      margin: 10px 0;
+      text-decoration: none;
+      color: rgb(17, 0, 55);
+      cursor: pointer;
+    }
+    .main-container {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      width: 100%;
+      flex-grow: 1;
+    }
+    .clues {
+      margin-right: 30px;
+      width: 250px;
+      margin-left: -350px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(10, 50px);
+      grid-gap: 2px;
+      margin-top: 20px;
+      align-items: center;
+    }
+    .cell {
+      width: 50px;
+      height: 50px;
+      border: 1px solid #000;
+      background-color: black;
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+      position: relative;
+    }
+    .editable {
+      background-color: white;
+      cursor: text;
+      text-align: center;
+      font-size: 18px;
+      font-weight: normal;
+      color: black;
+      width: 100%;
+      height: 100%;
+    }
+    .number {
+      font-size: 10px;
+      color: gray;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      pointer-events: none;
+      user-select: none;
+      font-weight: bold;
+    }
+    .clues h3 {
+      margin: 5px 0;
+      font-size: 20px;
+    }
+    .navigation-buttons {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: absolute;
+      bottom: 20px;
+      left: 48%;
+      transform: translateX(-50%);
+      width: 100%;
+    }
+    .navigation-buttons button {
+      font-size: 20px;
+      padding: 10px;
+      background-color: rgb(99, 226, 99);
+    }
+    .navigation-buttons button:hover {
+      background-color: rgb(197, 235, 190);
+    }
+    #loading {
+      display: none;
+      margin: 20px 0;
+      font-size: 18px;
+      color: gray;
+    }
+    
+    /* Style for email/social media prompt */
+    .prompt {
+      display: none;
+      position: fixed;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      width: 600px;
+      height: 600px;
+      box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    .prompt textarea {
+      width: 100%;
+      height: 80px;
+      margin-bottom: 10px;
+      font-size: 16px;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .prompt button {
+      padding: 10px 20px;
+      background-color: rgb(99, 226, 99);
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+    
+    }
+    .prompt button:hover {
+      background-color: rgb(197, 235, 190);
+    }
+    .prompt .close-btn {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      font-size: 20px;
+      cursor: pointer;
+      color: #fc0000;
+    }
+
+    #email-button {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background-color: rgb(99, 226, 99);
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #email-button:hover {
+      background-color: rgb(197, 235, 190);
+    }
+  </style>
+</head>
+<body>
+  <h1>Crossword Game</h1>
+  <a id="crossword-title" href="#" target="_blank"></a>
+  <div id="loading">Loading...</div>
+
+  <div class="navigation-buttons">
+    <button id="prev-button">Previous crossword</button>
+    <button id="check-button">Check Crossword</button>
+    <button id="next-button">Next Crossword</button>
+  </div>
+
+  <button id="email-button">Submit Email</button>
+
+  <!-- Container for the grid and clues -->
+  <div class="main-container">
+    <div id="clues" class="clues"></div>
+    <div class="grid" id="crossword-grid"></div>
+  </div>
+
+  <!-- Prompt for Email and Social Media -->
+  <div class="prompt" id="emailPrompt">
+    <span class="close-btn" id="closePrompt">X</span>
+    <h3>Submit Your Social Media Link & Email</h3>
+    <textarea id="socialMedia" placeholder="Your social media link..."></textarea>
+    <textarea id="crosswordEmail" placeholder="Your email address..."></textarea>
+    <button id="submitEmail">Submit</button>
+  </div>
+
+  <script>
+    let crosswordData = {};
+    let currentIndex = 0;
+
+    async function loadCrossword(index) {
+      document.getElementById("loading").style.display = "block";
+
+      const response = await fetch(`/crossword/${index}`);
+      const data = await response.json();
+      crosswordData = data;
+
+      const titleElement = document.getElementById("crossword-title");
+      titleElement.textContent = crosswordData.title || "Untitled Crossword";
+      titleElement.href = crosswordData.link || "#";
+      titleElement.style.textDecoration = crosswordData.link ? "underline" : "none";
+      titleElement.style.cursor = crosswordData.link ? "pointer" : "default";
+
+      displayGrid(crosswordData.grid, crosswordData.solution);
+      displayClues(crosswordData.clues);
+
+      document.getElementById("loading").style.display = "none";
+    }
+
+    function displayGrid(grid, solution) {
+      const gridContainer = document.getElementById("crossword-grid");
+      gridContainer.innerHTML = "";
+
+      grid.forEach((row, rowIndex) => {
+        row.forEach((cell, colIndex) => {
+          const cellElement = document.createElement("div");
+          cellElement.classList.add("cell");
+
+          if (solution[rowIndex][colIndex] !== "") {
+            const editableCell = document.createElement("div");
+            editableCell.contentEditable = true;
+            editableCell.classList.add("editable");
+            editableCell.dataset.solution = solution[rowIndex][colIndex];
+            editableCell.textContent = ""; 
+
+            editableCell.addEventListener("input", function () {
+              editableCell.textContent = editableCell.textContent.toUpperCase();
+              if (editableCell.textContent.length > 1) {
+                editableCell.textContent = editableCell.textContent[0];
+              }
+            });
+
+            if (cell !== "") {
+              const numberElement = document.createElement("span");
+              numberElement.classList.add("number");
+              numberElement.textContent = cell;
+              cellElement.appendChild(numberElement);
+            }
+
+            cellElement.appendChild(editableCell);
+          } else {
+            const nonEditableCell = document.createElement("div");
+            nonEditableCell.classList.add("cell");
+            nonEditableCell.style.backgroundColor = "black";
+            gridContainer.appendChild(nonEditableCell);
+            return;
+          }
+
+          gridContainer.appendChild(cellElement);
+        });
+      });
+    }
+
+    function displayClues(clues) {
+      const cluesContainer = document.getElementById("clues");
+      cluesContainer.innerHTML = "";
+
+      const acrossSection = document.createElement("div");
+      acrossSection.innerHTML = "<h3>ACROSS</h3>";
+      Object.entries(clues.ACROSS).forEach(([num, clue]) => {
+        const clueElement = document.createElement("p");
+        clueElement.textContent = `${num}. ${clue}`;
+        acrossSection.appendChild(clueElement);
+      });
+      cluesContainer.appendChild(acrossSection);
+
+      const downSection = document.createElement("div");
+      downSection.innerHTML = "<h3>DOWN</h3>";
+      Object.entries(clues.DOWN).forEach(([num, clue]) => {
+        const clueElement = document.createElement("p");
+        clueElement.textContent = `${num}. ${clue}`;
+        downSection.appendChild(clueElement);
+      });
+      cluesContainer.appendChild(downSection);
+    }
+
+    document.getElementById("prev-button").addEventListener("click", () => {
+      if (currentIndex > 0) {
+        currentIndex--;
+        loadCrossword(currentIndex);
+      }
+    });
+
+    document.getElementById("next-button").addEventListener("click", () => {
+      currentIndex++;
+      loadCrossword(currentIndex);
+    });
+
+    document.getElementById("check-button").addEventListener("click", () => {
+      const editableCells = document.querySelectorAll(".editable");
+      let allCorrect = true;
+
+      editableCells.forEach(cell => {
+        const userAnswer = cell.textContent.trim().toUpperCase();
+        const correctAnswer = cell.dataset.solution;
+
+        if (userAnswer !== correctAnswer) {
+          cell.style.color = "red";
+          allCorrect = false;
+        } else {
+          cell.style.color = "green";
+        }
+      });
+
+      if (allCorrect) {
+        alert("Congratulations! You completed the crossword.");
+      } else {
+        alert("Some answers are incorrect. Keep trying!");
+      }
+    });
+
+    // Open email prompt
+    document.getElementById("email-button").addEventListener("click", () => {
+      document.getElementById("emailPrompt").style.display = "block";
+    });
+
+    // Close email prompt
+    document.getElementById("closePrompt").addEventListener("click", () => {
+      document.getElementById("emailPrompt").style.display = "none";
+    });
+
+    // Submit email and social media links
+    document.getElementById("submitEmail").addEventListener("click", async () => {
+      const socialMedia = document.getElementById("socialMedia").value;
+      const crosswordEmail = document.getElementById("crosswordEmail").value;
+
+      if (socialMedia && crosswordEmail) {
+        try {
+          const response = await fetch('/submit-message', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ socialMedia, crosswordEmail })
+          });
+
+          if (response.ok) {
+            alert("Your message has been sent!");
+            document.getElementById("emailPrompt").style.display = "none";
+          } else {
+            alert("Error submitting message. Try again.");
+          }
+        } catch (error) {
+          console.error(error);
+          alert("Error submitting message. Try again.");
+        }
+      } else {
+        alert("Please fill out both fields.");
+      }
+    });
+
+    loadCrossword(currentIndex);
+  </script>
+</body>
+</html>
